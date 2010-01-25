@@ -200,7 +200,7 @@ module Resque
     end
     
     def inspect
-      "#<Resque::Status #{super}>"
+      "#<Resque::Status #{@h}>"
     end
   end
 end
