@@ -6,8 +6,8 @@ module Resque
   # Resque::Status is a Hash object that has helper methods for dealing with 
   # the common status attributes. It also has a number of class methods for 
   # creating/updating/retrieving status objects from Redis
-  class Status < Hash
-    VERSION = '0.1.1'
+  class Status
+    VERSION = '0.1.2' # PFZ forked because of hashing/encoding problems
 
     extend Resque::Helpers
 
@@ -123,17 +123,17 @@ module Resque
       coerce = options[:coerce] ? ".#{options[:coerce]}" : ""
       module_eval <<-EOT
       def #{name}
-        value = (self['#{name}'] ? self['#{name}']#{coerce} : #{options[:default].inspect})
+        value = (@h['#{name}'] ? @h['#{name}']#{coerce} : #{options[:default].inspect})
         yield value if block_given?
         value
       end
 
       def #{name}=(value)
-        self['#{name}'] = value
+        @h['#{name}'] = value
       end
 
       def #{name}?
-        !!self['#{name}']
+        !!@h['#{name}']
       end
       EOT
     end
@@ -148,28 +148,29 @@ module Resque
 
     hash_accessor :num
     hash_accessor :total
+    hash_accessor :pct_complete
+    hash_accessor :completion_url
     
     # Create a new Resque::Status object. If multiple arguments are passed
     # it is assumed the first argument is the UUID and the rest are status objects.
     # All arguments are subsequentily merged in order. Strings are assumed to 
     # be messages.
     def initialize(*args)
-      super nil
       base_status = {
         'time' => Time.now.to_i,
         'status' => 'queued'
       }
       base_status['uuid'] = args.shift if args.length > 1
-      status_hash = args.inject(base_status) do |final, m|
+      @h = args.inject(base_status) do |final, m|
         m = {'message' => m} if m.is_a?(String)
         final.merge(m || {})
       end
-      self.replace(status_hash)
+      @h['pct_complete'] = calculate_pct_complete
     end
     
     # calculate the % completion of the job based on <tt>status</tt>, <tt>num</tt>
     # and <tt>total</tt>
-    def pct_complete
+    def calculate_pct_complete
       case status
       when 'completed' then 100
       when 'queued' then 0
@@ -183,12 +184,12 @@ module Resque
     # Return the time of the status initialization. If set returns a <tt>Time</tt>
     # object, otherwise returns nil
     def time
-      time? ? Time.at(self['time']) : nil
+      time? ? Time.at(@h['time']) : nil
     end
 
     STATUSES.each do |status|
       define_method("#{status}?") do
-        self['status'] === status 
+        @h['status'] === status 
       end
     end
     
@@ -198,16 +199,8 @@ module Resque
       !['failed', 'completed', 'killed'].include?(self.status)
     end
     
-    # Return a JSON representation of the current object.
-    def to_json
-      h = self.dup
-      h['pct_complete'] = pct_complete
-      self.class.encode(h)
-    end
-
     def inspect
       "#<Resque::Status #{super}>"
     end
-
   end
 end
