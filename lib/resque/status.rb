@@ -7,7 +7,7 @@ module Resque
   # the common status attributes. It also has a number of class methods for 
   # creating/updating/retrieving status objects from Redis
   class Status
-    VERSION = '0.1.2' # PFZ forked because of hashing/encoding problems
+    VERSION = '0.1.2a' # PFZ forked because of hashing/encoding problems
 
     extend Resque::Helpers
 
@@ -160,10 +160,10 @@ module Resque
         'time' => Time.now.to_i,
         'status' => 'queued'
       }
-      base_status['uuid'] = args.shift if args.length > 1
+      base_status['uuid'] = args.shift if args.length > 1 && args[0].is_a?(String)
       @h = args.inject(base_status) do |final, m|
-        m = {'message' => m} if m.is_a?(String)
-        final.merge(m || {})
+        m = { 'message' => m } if m.is_a?(String)
+        m.is_a?(Hash) ? final.merge(m) : final
       end
       @h['pct_complete'] = calculate_pct_complete
     end
@@ -199,8 +199,16 @@ module Resque
       !['failed', 'completed', 'killed'].include?(self.status)
     end
     
+    def to_h
+      @h
+    end
+    
+    def to_json(*a)
+      @h.to_json(*a)
+    end
+    
     def inspect
-      "#<Resque::Status #{@h}>"
+      "#<Resque::Status #{@h.inspect}>"
     end
   end
 end
