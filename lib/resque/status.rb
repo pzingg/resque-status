@@ -160,11 +160,12 @@ module Resque
         'time' => Time.now.to_i,
         'status' => 'queued'
       }
-      base_status['uuid'] = args.shift if args.length > 1 && args[0].is_a?(String)
+      uuid = args.shift if args.length > 1 && args[0].is_a?(String)
       @h = args.inject(base_status) do |final, m|
         m = { 'message' => m } if m.is_a?(String)
         m.is_a?(Hash) ? final.merge(m) : final
       end
+      @h['uuid'] = uuid if uuid
       @h['pct_complete'] = calculate_pct_complete
     end
     
