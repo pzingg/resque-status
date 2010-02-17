@@ -7,7 +7,7 @@ module Resque
   # the common status attributes. It also has a number of class methods for 
   # creating/updating/retrieving status objects from Redis
   class Status
-    VERSION = '0.1.2a' # PFZ forked because of hashing/encoding problems
+    VERSION = '0.1.2' # PFZ forked because of hashing/encoding problems
 
     extend Resque::Helpers
 
@@ -198,6 +198,10 @@ module Resque
     # (for pretty obvious reasons)
     def killable?
       !['failed', 'completed', 'killed'].include?(self.status)
+    end
+    
+    def [](key)
+      @h[key]
     end
     
     def to_h
